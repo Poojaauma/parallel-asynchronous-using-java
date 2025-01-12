@@ -7,6 +7,7 @@ import com.learnjava.service.ReviewService;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 import static com.learnjava.util.CommonUtil.stopWatch;
 import static com.learnjava.util.LoggerUtil.log;
@@ -83,15 +84,77 @@ public class ProductServiceUsingCompletableFuture {
                         });
         CompletableFuture<Review> reviewCompletableFuture =
                 CompletableFuture.supplyAsync(() ->
-                        reviewService.retrieveReviews(productId));
+                        reviewService.retrieveReviews(productId))
+                        .exceptionally((e) -> {
+                            log("Handled the Exception in reviewService : "+ e.getMessage());
+                            return Review.builder().noOfReviews(0).overallRating(0.0).build();
+                        });
         Product product = productInfoCompletableFuture
                 .thenCombine(reviewCompletableFuture,
                         (productInfo, review)->
-                                new Product(productId, productInfo, review)).join();
+                                new Product(productId, productInfo, review))
+
+                .whenComplete((productInfo, exception)->{
+                    log("Inside whenComplete : " + productInfo + "exception : " + exception);
+
+                })
+                .join();
 
         stopWatch.stop();
         log("Total Time Taken : "+ stopWatch.getTime());
         return product;
+    }
+
+    private List<ProductOption> updateInventoryToProductOption_approach3(ProductInfo productInfo) {
+
+
+
+        List<CompletableFuture<ProductOption>> productOptionList = productInfo.getProductOptions()
+
+                .stream()
+
+                .map(productOption ->
+
+                        CompletableFuture.supplyAsync(() -> inventoryService.retrieveInventory(productOption))
+
+                                .exceptionally((ex) -> {
+
+                                    log("Exception in Inventory Service : " + ex.getMessage());
+
+                                    return Inventory.builder()
+
+                                            .count(1).build();
+
+                                })
+
+                                .thenApply((inventory -> {
+
+                                    productOption.setInventory(inventory);
+
+                                    return productOption;
+
+                                })))
+
+                .toList();
+
+
+
+        CompletableFuture<Void> cfAllOf = CompletableFuture.allOf(productOptionList.toArray(new CompletableFuture[productOptionList.size()]));
+
+        return cfAllOf
+
+                .thenApply(v->{
+
+                    return  productOptionList.stream().map(CompletableFuture::join)
+
+                            .collect(Collectors.toList());
+
+                })
+
+                .join();
+
+
+
     }
 
     private List<ProductOption> updateInventory(ProductInfo productInfo) {
