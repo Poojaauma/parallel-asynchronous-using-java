@@ -11,7 +11,6 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-@Disabled
 class MoviesClientTest {
 
 
@@ -59,6 +58,21 @@ class MoviesClientTest {
         var movieInfoIds = List.of(1L,2L, 3L,4L,5L,6L,7L);
         //when
         var movies = moviesClient.retrieveMovieList_CF(movieInfoIds);
+
+        System.out.println("movie : " + movies);
+        CommonUtil.timeTaken();
+        //then
+        assert movies!=null;
+        assert movies.size()==7;
+    }
+
+    @RepeatedTest(10)
+    void retrieveMovieList_CF_AllOf() {
+        CommonUtil.startTimer();
+        //given
+        var movieInfoIds = List.of(1L,2L, 3L,4L,5L,6L,7L);
+        //when
+        var movies = moviesClient.retrieveMovieList_CF_AllOf(movieInfoIds);
 
         System.out.println("movie : " + movies);
         CommonUtil.timeTaken();
